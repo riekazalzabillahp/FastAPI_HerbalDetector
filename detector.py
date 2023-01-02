@@ -61,8 +61,8 @@ def feature_extract(image):
     angle = ['0','45','90','135']
     
     # Membuat variabel kolom untuk dataset
-    names = ['area','perimeter','physiological_length','physiological_width','aspect_ratio','rectangularity','circularity',\
-             'eccentricity','metric',\
+    names = ['physiological_length','physiological_width','aspect_ratio','rectangularity',\
+             'eccentricity',\
              'hue','saturation','value',\
             ]
     
@@ -75,8 +75,6 @@ def feature_extract(image):
     df = pd.DataFrame([], columns=names)
     
     #Preprocessing
-#     test_img_path = 'Bidara.jpg'
-#     original_image = cv2.imread(test_img_path)
     img = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
     grayscale = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
         
@@ -99,10 +97,8 @@ def feature_extract(image):
 
     #shape
     area = cv2.contourArea(select)
-    perimeter = cv2.arcLength(select,True)
     aspect_ratio = float(w)/h
     rectangularity = w*h/area
-    circularity = ((perimeter)**2)/area
     
     #shape eccentricity
     dimension = png.shape
@@ -110,33 +106,9 @@ def feature_extract(image):
     width = png.shape[1]
     mayor = max(height,width)
     minor = min(height,width)
-    eccentricity = math.sqrt(1-((minor*minor)/(mayor*mayor)))
+    eccentricity = math.sqrt(1-((minor*minor)/(mayor*mayor)))    
 
-    #shape metric
-    height1=png.shape[0]
-    width1=png.shape[1]
-    edge = cv2.Canny(img,100,200)
-    k=0
-    keliling=0
-    while k<height1:
-        l=0
-        while l<width1:
-            if edge[k,l]==255:
-                keliling=keliling+1
-            l=l+1
-        k=k+1
-    k=0
-    luas = 0
-    while k<height1:
-        l=0
-        while l<width1:
-            if img1[k,l]==255:
-                luas=luas+1
-            l=l+1
-        k=k+1
-    metric = (4*math.pi*luas)/(keliling*keliling)    
-
-#     #hsv color
+    #hsv color
     hsv = cv2.cvtColor(png, cv2.COLOR_BGR2HSV)
     height=png.shape[0]
     width=png.shape[1]
@@ -165,7 +137,7 @@ def feature_extract(image):
 
     # Membuat dataset berdasarkan variabel kolom
     glcm_props = [propery for name in glcm_feature for propery in greycoprops(glcm,name)[0]]
-    vector = [area,perimeter,w,h,aspect_ratio,rectangularity,circularity,eccentricity,metric,mode_hue,mean_s,mean_v] + glcm_props
+    vector = [w,h,aspect_ratio,rectangularity,eccentricity,mode_hue,mean_s,mean_v] + glcm_props
 
     df_temp = pd.DataFrame([vector],columns=names)
     df = df.append(df_temp)  
@@ -184,11 +156,7 @@ def get_predict_image(imageFile):
 
     features_of_img = feature_extract(bg_rem_img)
 
-    drop_features = ['area',
-    'perimeter',
-    'physiological_length',
-    'circularity',
-    'metric',
+    drop_features = ['physiological_length',
     'saturation',
     'correlation 0',
     'correlation 45',
@@ -216,15 +184,15 @@ def get_predict_image(imageFile):
     scaled_features = scaler.transform(features_of_img)
 
     model_ovr = pickle.load(open('svm_model/Model10Kelas.pkl', 'rb'))
-    print('\nmodel loaded...')
+    # print('\nmodel loaded...')
 
     prob = model_ovr.predict_proba(scaled_features)
     cls = model_ovr.classes_
-    print(f"\nKelas : {cls} \n\nProbabilitas : {prob}")
+    # print(f"\nKelas : {cls} \n\nProbabilitas : {prob}")
 
     prob_best = np.sort(prob)[:,:-3-1:-1]*100
     cls_best = np.argsort(prob)[:,:-3-1:-1]+1
-    print(f"\nKelas dengan 3 Probabilitas Tertinggi : {cls_best} = {prob_best}")
+    # print(f"\nKelas dengan 3 Probabilitas Tertinggi : {cls_best} = {prob_best}")
 
     names = {
     1 : 'Bidara',
