@@ -1,237 +1,21 @@
-#!/usr/bin/env python
-# coding: utf-8
-
-# # Klasifikasi dengan Multi-SVM
-
-# In[1]:
-
-
-# Library
-# Untuk mengolah data 
-import pandas as pd
-import numpy as np
-from sklearn.model_selection import train_test_split
-
-# Untuk mengimport SVM
-from sklearn import svm
-
-# Untuk digunakan pada SVM dengan parameter tuning 
-from sklearn.model_selection import GridSearchCV
-# Standarisasi dengan metode StandardScaler
-from sklearn.preprocessing import StandardScaler
-
-from sklearn.decomposition import PCA
-# Untuk memanggil metrik akurasi
-from sklearn import metrics
-# Untuk visualisasi data
-import seaborn as sns
-import matplotlib.pyplot as plt
-
-from mlxtend.plotting import plot_decision_regions
-
-# Menghitung nilai akurasi untuk model
-from sklearn.metrics import accuracy_score
-from sklearn.metrics import classification_report, confusion_matrix
-
-
-# ## Memanggil Dataset
-
-# In[2]:
-
-
-# Memuat data train pada dataframe
-df_train = pd.read_csv('dataset/DataTraining_FlipCorr.csv')
-
-df_train.head(5)
-
-
-# In[3]:
-
-
-# #Menghilangkan kolom hsv
-# df_train = df_train.drop(columns=['hue','saturation','value'])
-# df_train.head(5)
-
-
-# In[4]:
-
-
-# Memuat informasi pada dataframe train
-df_train.info()
-
-
-# In[5]:
-
-
-# Memuat deskripsi pada dataframe train
-df_train.describe()
-
-
-# In[6]:
-
-
-# Menyimpan fitur atribut ke dalam variabel X_train
-X = df_train.drop(labels = ['class'],axis = 1) 
-#menyimpan class (label) pada y_train
-y = df_train['class']
-
-
-# ## Melakukan pembagian data pada dataset dengan train_test_split
-
-# In[7]:
-
-
-# Melakukan pembagian data dengan train_test_split
-X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.25, random_state=42)
-print('X_train = ' + str(len(X_train)) + ' , ' + 'y_train = ' + 
-      str(len(y_train)) + ' , ' + 'X_test = ' + str(len(X_test)), 'y_test = ' + str(len(y_test)))
-
-
-# In[8]:
-
-
-y_test = y_test.tolist()
-y_train = y_train.tolist()
-
-
-# In[9]:
-
-
-print(X_train.iloc[:,:])
-print(type(X_train))
-
-
-# ## Standarisasi dengan metode StandardScaler
-
-# In[10]:
-
-
-# inisiasi StandardScaler
-scaler = StandardScaler()
-# Melakukan standarisasi data
-X_train = scaler.fit_transform(X_train)
-X_test = scaler.transform(X_test)
-
-
-# ## GridSearchCV untuk Hyper Parameter
-
-# In[11]:
-
-
-parameters = [{'kernel': ['rbf'],
-               'gamma': [1e-4, 1e-3, 0.01, 0.1, 0.2, 0.5],
-               'C': [1, 10, 100, 1000]},
-              {'kernel': ['linear'], 'C': [1, 10, 100, 1000]}
-             ]
-
-
-# In[12]:
-
-
-# Menggunakan Gridsearch dengan memanggil class SVC
-model_param = GridSearchCV(svm.SVC(),parameters,cv=5)
-#melakukan training pada objek dan label
-model_param.fit(X_train, y_train)
-
-
-# In[13]:
-
-
-# Menampilkan hasil dari model SVM berdasarkan Hyper Parameter Tuning
-means = model_param.cv_results_['mean_test_score']
-stds = model_param.cv_results_['std_test_score']
-for mean, std, params in zip(means, stds, model_param.cv_results_['params']):
-    print('%0.3f (+/-%0.03f) for %r' % (mean, std * 2, params))
-
-
-# In[14]:
-
-
-# Hasil hyperparameter tuning dengan skor terbaik yang di dapatkan
-print(f"Best parameter {model_param.best_params_} with score {model_param.best_score_}")
-
-
-# In[15]:
-
-
-# Melakukan prediksi pada data testing
-y_pred1 = model_param.predict(X_test)
-print('hasil prediksi train dari best_param : ', metrics.accuracy_score(y_test, y_pred1))
-
-
-# In[16]:
-
-
-conf1= confusion_matrix(y_test, y_pred1)
-#confusion matrix
-conf_matrix = pd.DataFrame(conf1, ('1','2','3','4'), ('1','2','3','4'))
-
-# Plot confusion matrix
-plt.figure()
-heatmap = sns.heatmap(conf_matrix, annot=True, annot_kws={'size': 14}, fmt='d', cmap='Blues')
-
-plt.title('Confusion Matrix untuk  Model SVM\n(Dengan hyperparameter tuning)\n', fontsize=18)
-plt.ylabel('True label', fontsize=14)
-plt.xlabel('Predicted label', fontsize=14)
-plt.show()
-
-
-# ## Model SVM OneVsOneClassifier dengan BestParameter
-
-# In[17]:
-
-
-from sklearn.multiclass import OneVsOneClassifier
-
-model_ovo = OneVsOneClassifier(svm.SVC(C=100, kernel='linear'))
-model_ovo.fit(X_train, y_train)                       
-
-y_pred4 = model_ovo.predict(X_test)                          
-metrics.accuracy_score(y_test, y_pred4)
-
-
-# ## Model SVM OneVsRestClassifier dengan BestParameter
-
-# In[18]:
-
-
-from sklearn.multiclass import OneVsRestClassifier
-model_ovr = OneVsRestClassifier(svm.SVC(C=100, kernel='linear'))
-model_ovr.fit(X_train, y_train)                       
-
-y_pred3 = model_ovr.predict(X_test)                          
-metrics.accuracy_score(y_test, y_pred3)                
-
-
-# In[19]:
-
-
-conf3= confusion_matrix(y_test, y_pred3)
-
-#confusion matrix
-conf_matrix = pd.DataFrame(conf3, ('1','2','3','4'), ('1','2','3','4'))
-
-# Plot confusion matrix
-plt.figure()
-heatmap = sns.heatmap(conf_matrix, annot=True, annot_kws={'size': 14}, fmt='d', cmap='Blues')
-
-plt.title('Confusion Matrix untuk  Model SVM\nOneVsRestClassifier\n', fontsize=18)
-plt.ylabel('True label', fontsize=14)
-plt.xlabel('Predicted label', fontsize=14)
-plt.show()
-
-
-# ## Testing Image
-
-# In[20]:
-
-
 import os
+import json
+import shutil
 import cv2
-
-
-# In[21]:
-
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+import mahotas as mt
+from skimage.feature import greycomatrix, greycoprops
+from skimage.measure.entropy import shannon_entropy
+import math
+from scipy import stats
+from sklearn.preprocessing import StandardScaler
+import pickle
+from sklearn.model_selection import train_test_split
+from fastapi.responses import JSONResponse
+from fastapi.encoders import jsonable_encoder
+from fastapi import Response
 
 def init_mask(h, w):
     mask = np.ones((h, w), np.uint8) * cv2.GC_PR_BGD
@@ -239,13 +23,8 @@ def init_mask(h, w):
     mask[2*h//5:3*h//5, 2*w//5:3*w//5] = cv2.GC_FGD
     return mask
 
-
-# In[22]:
-
-
-def preprocess_grabcut(filename): 
-    test_img_path = 'Testing/' + filename
-    original_image = cv2.imread(test_img_path)
+def preprocess_background(filename): 
+    original_image = cv2.imread("img/" + filename)
     original_image = cv2.cvtColor(original_image, cv2.COLOR_BGR2RGB)
     original_image = cv2.resize(original_image , (500,500))
     image = original_image
@@ -271,56 +50,37 @@ def preprocess_grabcut(filename):
 
     image[mask2] = 255
     
-    f = plt.figure()
-    f.add_subplot(1,2, 1)
-    plt.imshow(image)
-    plt.show(block=True)
-    
     image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
-    
-#     cv2.imwrite(filename, image)
     
     return image
     
-
-
-# In[32]:
-
-
-
-
-# In[24]:
-
-
-import mahotas as mt
-from skimage.feature import greycomatrix, greycoprops
-import math
-from scipy import stats
-
-
-# In[33]:
-
 
 def feature_extract(image):
     
     #Membuat perulangan untuk kolom feature glcm
     glcm_feature = ['correlation', 'homogeneity','dissimilarity','contrast','ASM','energy']
+    ent = ['entropy']
     angle = ['0','45','90','135']
     
     # Membuat variabel kolom untuk dataset
-    names = ['area','perimeter','physiological_length','physiological_width','aspect_ratio','rectangularity','circularity',             'eccentricity','metric',             'hue','saturation','value',            ]
+    names = ['physiological_length','physiological_width','aspect_ratio','rectangularity',\
+             'eccentricity',\
+             'hue','saturation','value',\
+            ]
     
     #Pemanggilan perulangan kolom glcm
     for i in glcm_feature:
         for j in angle:
             names.append(i + ' ' + j)
     
+    for i in ent:
+        for j in angle:
+            names.append(i + ' ' + j)
+
     # Membuat dataframe berdasarkan nama kolom yang dibuat
     df = pd.DataFrame([], columns=names)
     
     #Preprocessing
-#     test_img_path = 'Bidara.jpg'
-#     original_image = cv2.imread(test_img_path)
     img = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
     grayscale = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
         
@@ -343,10 +103,8 @@ def feature_extract(image):
 
     #shape
     area = cv2.contourArea(select)
-    perimeter = cv2.arcLength(select,True)
     aspect_ratio = float(w)/h
     rectangularity = w*h/area
-    circularity = ((perimeter)**2)/area
     
     #shape eccentricity
     dimension = png.shape
@@ -354,33 +112,9 @@ def feature_extract(image):
     width = png.shape[1]
     mayor = max(height,width)
     minor = min(height,width)
-    eccentricity = math.sqrt(1-((minor*minor)/(mayor*mayor)))
+    eccentricity = math.sqrt(1-((minor*minor)/(mayor*mayor)))    
 
-    #shape metric
-    height1=png.shape[0]
-    width1=png.shape[1]
-    edge = cv2.Canny(img,100,200)
-    k=0
-    keliling=0
-    while k<height1:
-        l=0
-        while l<width1:
-            if edge[k,l]==255:
-                keliling=keliling+1
-            l=l+1
-        k=k+1
-    k=0
-    luas = 0
-    while k<height1:
-        l=0
-        while l<width1:
-            if img1[k,l]==255:
-                luas=luas+1
-            l=l+1
-        k=k+1
-    metric = (4*math.pi*luas)/(keliling*keliling)    
-
-#     #hsv color
+    #hsv color
     hsv = cv2.cvtColor(png, cv2.COLOR_BGR2HSV)
     height=png.shape[0]
     width=png.shape[1]
@@ -407,96 +141,124 @@ def feature_extract(image):
 
     glcm = greycomatrix(gray, distance, angles, levels, symetric, normed)
 
+    #glcm entropy
+    dem = []
+    for a in angles :
+        dem.append(greycomatrix(gray, distances=[5], 
+                                    angles=[a], levels = 256, symmetric=True, 
+                                    normed=True))
+    entr = []
+    for g in dem:
+        entr.append(shannon_entropy(g))
+
     # Membuat dataset berdasarkan variabel kolom
     glcm_props = [propery for name in glcm_feature for propery in greycoprops(glcm,name)[0]]
-    vector = [area,perimeter,w,h,aspect_ratio,rectangularity,circularity,eccentricity,metric,mode_hue,mean_s,mean_v] + glcm_props
+    vector = [w,h,aspect_ratio,rectangularity,eccentricity,mode_hue,mean_s,mean_v] + glcm_props + entr
 
     df_temp = pd.DataFrame([vector],columns=names)
     df = df.append(df_temp)  
             
     return df
-            
 
 
-# In[34]:
+def get_predict_image(imageFile):
+    ext = imageFile.filename.split(".")[1]
+    filename = str("image_temp."+ ext)
+    # print("filename: " +filename)
+    with open("img/"+filename, "wb+") as image_obj:
+        shutil.copyfileobj(imageFile.file, image_obj)
 
-
-
-
-# In[35]:
-
-
-
-# In[36]:
-
-
-
-# In[37]:
-
-
-
-
-# ## Save Model
-
-# In[30]:
-
-
-
-
-# In[31]:
-
-
-
-# In[ ]:
-
-def get_predict_image():
-    filename = 'Jambu1.jpg' 
-    bg_rem_img = preprocess_grabcut(filename)
+    bg_rem_img = preprocess_background(filename)
 
     features_of_img = feature_extract(bg_rem_img)
 
-    ft = np.array(features_of_img)
-
-    drop_features = ['area',
-    'physiological_length',
-    'hue',
+    drop_features = ['physiological_length',
+    'saturation',
+    'correlation 0',
     'correlation 45',
-    'correlation 90',
-    'correlation 135',
-    'dissimilarity 0',
-    'dissimilarity 45',
-    'dissimilarity 90',
-    'dissimilarity 135',
-    'contrast 0',
-    'contrast 45',
-    'contrast 90',
-    'contrast 135']
+    'correlation 135']
+
+    df_train = pd.read_csv('dataset/Datasetcorrhasil.csv')
+    # Menyimpan fitur atribut ke dalam variabel X_train
+    X = df_train.drop(labels = ['class'],axis = 1) 
+    #menyimpan class (label) pada y_train
+    y = df_train['class']
+    
+    # Melakukan pembagian data dengan train_test_split
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.20, random_state=42)
 
     scaler = StandardScaler()
-    
+        
+    # Melakukan standarisasi data
+    X_train = scaler.fit_transform(X_train)
 
-    # features_of_img = features_of_img.drop(drop_features, axis=1)
-    # scaled_features = scaler.fit_transform(features_of_img)
     features_of_img = features_of_img.drop(drop_features, axis=1)
+    
+    ft = features_of_img.iloc[0]
+    print(ft)
+
     scaled_features = scaler.transform(features_of_img)
 
-    # y_pred_mobile = model_ovr.predict(scaled_features)
+    model_ovr = pickle.load(open('svm_model/ModelwithEntr.pkl', 'rb'))
+    # print('\nmodel loaded...')
 
-    import pickle
-    model_ovr = pickle.load(open('svm_model/Model1.pkl', 'rb'))
-    print('model loaded...')
-    y_pred_mobile = model_ovr.predict(scaled_features)
+    prob = model_ovr.predict_proba(scaled_features)
+    cls = model_ovr.classes_
+    print(f"\nKelas : {cls} \n\nProbabilitas : {prob}")
 
-    result = y_pred_mobile[0]
-    print(result)
+    prob_best = np.sort(prob)[:,:-3-1:-1]*100
+    cls_best = np.argsort(prob)[:,:-3-1:-1]+1
+    print(f"\nKelas dengan 3 Probabilitas Tertinggi : {cls_best} = {prob_best}")
 
     names = {
-        1 : 'Bidara',
-        2 : 'Jambu',
-        3 : 'Miana',
-        4 : 'Sirih',
+        1 : 'Anting-anting',
+        2 : 'Bayam Duri',
+        3 : 'Bidara',
+        4 : 'Daun Ungu',
+        5 : 'Jambu',
+        6 : 'Kirinyuh',
+        7 : 'Miana',
+        8 : 'Sidaguri',
+        9 : 'Sirih',
+        10 : 'Sirsak'
+    }
+    x = cls_best[0]
+    y = prob_best[0]
+
+    print(f" 1. {names[x[0]]} = {round(y[0], 3)}\n 2. {names[x[1]]} = {round(y[1],3)}\n 3. {names[x[2]]} = {round(y[2],3)}")
+
+
+    threshold = 0.55 
+    classIdx = prob[0].argmax()
+    probIdx = prob[0][classIdx]
+
+    if probIdx > threshold:
+        resultName = names[classIdx+1]
+    else:
+        resultName = "Unknown"
+
+    # y_pred_mobile = model_ovr.predict(scaled_features)
+    # result = y_pred_mobile[0]
+    # print(f"\nHasil Klasifikasi adalah Kelas = {result} (Tanaman Obat {names[result]})\n")
+
+    value = {
+        "result": resultName,
+        "probabilitas": [
+            {
+                "name" : names[x[0]],
+                "presentage": str(round(y[0], 3))
+            },
+            {
+                "name" : names[x[1]],
+                "presentage": str(round(y[1], 3))
+            },
+            {
+                "name" : names[x[2]],
+                "presentage": str(round(y[2], 3))
+            },
+        ]
     }
 
-    return names[result]
-
-
+    json_str = json.dumps(value)
+    print(json_str)
+    return Response(content=json_str, media_type='application/json')

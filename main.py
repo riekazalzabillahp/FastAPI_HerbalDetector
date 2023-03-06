@@ -1,6 +1,6 @@
 from typing import Union
 from fastapi import FastAPI, File, UploadFile
-from detector import get_predict_image
+from detector2 import get_predict_image
 
 app = FastAPI()
 
